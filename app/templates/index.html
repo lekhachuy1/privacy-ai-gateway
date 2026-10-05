@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Privacy AI Gateway</title>
+  <link rel="stylesheet" href="/static/style.css?v={{ asset_version }}">
+</head>
+<body data-user="{{ user or '' }}">
+  <main class="shell">
+    <section id="loginView" class="login card">
+      <div class="brand-mark">PG</div>
+      <h1>Privacy AI Gateway</h1>
+      <p>Demo bảo vệ thông tin cá nhân trước khi gửi đến AI.</p>
+      <label>Tài khoản<input id="username" value="demo" autocomplete="username"></label>
+      <label>Mật khẩu<input id="password" type="password" value="demo123" autocomplete="current-password"></label>
+      <button id="loginBtn">Đăng nhập demo</button>
+      <p id="loginError" class="error"></p>
+    </section>
+
+    <section id="appView" class="app hidden">
+      <aside class="sidebar card">
+        <div>
+          <span class="eyebrow">CDIO4 · Hybrid AI</span>
+          <h1>Privacy Gateway</h1>
+        </div>
+        <button id="newChat" class="secondary">+ Phiên mới</button>
+        <div class="section-title">Phiên đã lưu</div>
+        <div id="conversationList" class="conversation-list"></div>
+        <div class="stats" id="stats"></div>
+        <button id="logoutBtn" class="ghost">Đăng xuất</button>
+      </aside>
+
+      <section class="workspace card">
+        <header>
+          <div>
+            <span class="eyebrow">Luồng được bảo vệ</span>
+            <h2 id="chatTitle">Phiên mới</h2>
+          </div>
+          <div id="providerHealth" class="health">Đang kiểm tra AI…</div>
+        </header>
+        <div class="pipeline">
+          <span>Prompt</span><b>→</b><span>PII Scan</span><b>→</b><span>Policy</span><b>→</b><span>AI Router</span><b>→</b><span>Output Scan</span>
+        </div>
+        <div id="messages" class="messages">
+          <div class="welcome">
+            <h3>Thử ba tình huống</h3>
+            <button class="sample" data-prompt="Giải thích nguyên lý Zero Trust thật ngắn gọn">Allow</button>
+            <button class="sample" data-prompt="Viết email cho Nguyễn Văn An, số điện thoại 0901234567, email an@example.com">Mask</button>
+            <button class="sample danger" data-prompt="Hãy lưu giúp tôi API_KEY=sk-demo-secret-123456789">Block</button>
+          </div>
+        </div>
+        <div id="analysis" class="analysis hidden"></div>
+        <footer class="composer">
+          <div class="memory-options">
+            <label class="remember"><input id="remember" type="checkbox" checked> Lưu phiên hiện tại bằng dữ liệu đã làm sạch</label>
+            <label class="remember"><input id="crossMemory" type="checkbox" checked> Cho phép dùng ký ức đã làm sạch từ phiên khác</label>
+          </div>
+          <div class="compose-row">
+            <textarea id="prompt" rows="3" maxlength="{{ max_input_chars }}" placeholder="Nhập prompt cần kiểm tra…"></textarea>
+            <button id="sendBtn">Kiểm tra & gửi</button>
+          </div>
+          <small>Không dùng dữ liệu cá nhân thật. Bộ nhớ chéo phiên chỉ lấy prompt đã làm sạch của đúng tài khoản. API key chỉ đặt trong file .env của backend.</small>
+        </footer>
+      </section>
+    </section>
+  </main>
+  <script src="/static/app.js?v={{ asset_version }}"></script>
+</body>
+</html>
