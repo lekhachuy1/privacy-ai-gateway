@@ -53,8 +53,18 @@ SECRET_KEYWORDS = (
 )
 # Cho phép vài từ chỉ chủ sở hữu/loại tài khoản giữa từ khóa và giá trị.
 SECRET_QUALIFIERS = (
-    r"(?:\s+(?:của\s+(?:tôi|em|anh|chị|mình|bạn)|wifi|wi-fi|email|gmail|facebook|zalo|"
-    r"ngân\s*hàng|tài\s*khoản|đăng\s*nhập|admin|root|database|db|mới|cũ|hiện\s*tại)){0,3}"
+    r"(?:\s+(?:của\s+(?:tôi|em|anh|chị|mình|bạn)|wifi|wi-fi|email|gmail|facebook|fb|zalo|"
+    r"instagram|ig|tiktok|shopee|momo|icloud|ngân\s*hàng|tài\s*khoản|đăng\s*nhập|admin|root|"
+    r"database|db|mới|cũ|hiện\s*tại|nhà(?:\s+(?:tôi|em|mình|anh|chị))?)){0,3}"
+)
+# Viết tắt hay gặp khi chat ("pass wifi:", "mk fb là ..."). Tách riêng vì "pass"
+# cũng là từ tiếng Anh thông dụng: chỉ chặn khi có ":"/"=" hoặc giá trị có số/ký hiệu.
+SECRET_SHORT = r"(?:pass|pw|mk|mật\s*mã|mat\s*ma)"
+# Tên biến môi trường/cấu hình chứa bí mật: DB_PASSWORD=, AWS_SECRET_ACCESS_KEY=,
+# GITHUB_TOKEN=. Dấu "_" là ký tự chữ nên \b của mẫu từ khóa không bắt được.
+ENV_SECRET_NAME = (
+    r"[A-Z0-9_]*(?:PASSWORD|PASSWD|SECRET|TOKEN|API_?KEY|PRIVATE_?KEY|ACCESS_?KEY|CREDENTIALS?)"
+    r"(?:_[A-Z0-9]+)*"
 )
 
 ADDRESS_KEYWORDS = (
@@ -107,6 +117,34 @@ def _address_ok(value: str) -> bool:
     return bool(ADDRESS_DETAIL.search(value))
 
 
+def _iban_ok(value: str) -> bool:
+    # ISO 13616: chuyển 4 ký tự đầu xuống cuối, đổi chữ thành số, chia dư 97 phải = 1.
+    compact = re.sub(r"\s", "", value).upper()
+    rearranged = compact[4:] + compact[:4]
+    return int("".join(str(int(c, 36)) for c in rearranged)) % 97 == 1
+
+
+# Địa chỉ viết tắt không có từ khóa: "268 Lý Thường Kiệt, P.14, Q.10, TP.HCM".
+# Phải có số nhà, tên đường và ít nhất một cấp hành chính (phường/quận/TP...).
+ADMIN_UNIT = (
+    r"(?:p\.|phường|phuong|x\.|xã|q\.|quận|quan|h\.|huyện|huyen|tx\.|thị\s*xã|tt\.|thị\s*trấn|"
+    r"tp\.?|thành\s*phố|tỉnh)"
+)
+ADDRESS_STOP = r"(?:giúp|giùm|nhé|nha|với|và|hãy|cho|để|trước|lúc|vào|ngay|nhanh|gấp|ạ)"
+ADDRESS_WORD = rf"(?!{ADDRESS_STOP}\b)[^\W_]+\.?"
+ADMIN_SEGMENT = re.compile(rf"(?i),\s*{ADMIN_UNIT}")
+# "15 Phố Huế, ..." : từ chỉ đường ngay sau số nhà, tên đường viết hoa ("3 phố đi
+# bộ, ..." không phải địa chỉ).
+STREET_HEAD = re.compile(r"(?i)(?:số\s+)?\d[\w/]*\s+(?:đường|phố|ngõ|ngách|hẻm|kiệt)\s+(?P<next>\w)")
+
+
+def _short_address_ok(value: str) -> bool:
+    if ADMIN_SEGMENT.search(value):
+        return True
+    head = STREET_HEAD.match(value)
+    return bool(head and (head.group("next").isupper() or head.group("next").isdigit()))
+
+
 Validator = Callable[[str], bool] | None
 
 # Thứ tự quan trọng: mẫu đứng trước chiếm chỗ, mẫu sau không được chồng lên.
@@ -119,6 +157,18 @@ PATTERNS: list[tuple[str, str, re.Pattern[str], Validator]] = [
         rf"(?i)\b{SECRET_KEYWORDS}{SECRET_QUALIFIERS}\s+(?:là|la|is)\s+[\"'“]?"
         r"(?=\S*?(?:\d|[!@#$%^&*_+=~<>|\\/-]))\S+"
     ), None),
+    ("SECRET", "critical", re.compile(rf"(?<![A-Za-z0-9])\b{ENV_SECRET_NAME}\s*[:=]\s*[\"']?[^\s\"']{{4,}}"), None),
+    # JSON/YAML: {"password": "..."} — dấu ngoặc kép nằm giữa khóa và dấu ":".
+    ("SECRET", "critical", re.compile(
+        rf"(?i)[\"']{SECRET_KEYWORDS}[\"']\s*:\s*[\"'][^\"']{{3,}}[\"']"
+    ), None),
+    ("SECRET", "critical", re.compile(rf"(?i)\b{SECRET_SHORT}{SECRET_QUALIFIERS}\s*[:=]\s*\S{{3,}}"), None),
+    ("SECRET", "critical", re.compile(
+        rf"(?i)\b{SECRET_SHORT}{SECRET_QUALIFIERS}\s+(?:là|la|is)\s+[\"'“]?"
+        r"(?=\S*?(?:\d|[!@#$%^&*_+=~<>|\\/-]))\S+"
+    ), None),
+    # CVV/CVC không bao giờ được lưu hay gửi đi (PCI DSS), nên chặn như secret.
+    ("SECRET", "critical", re.compile(r"(?i)\b(?:cvv2?|cvc2?|cid)\s*(?:là|:|=)?\s*\d{3,4}(?!\d)"), None),
     ("SECRET", "critical", re.compile(r"\bsk-(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{16,}"), None),
     ("SECRET", "critical", re.compile(r"\b(?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{10,}"), None),
     ("SECRET", "critical", re.compile(r"\bAIza[0-9A-Za-z_-]{20,}"), None),
@@ -142,6 +192,11 @@ PATTERNS: list[tuple[str, str, re.Pattern[str], Validator]] = [
         r"(?:\s*(?:của\s*(?:tôi|em|anh|chị|mình|bạn|khách(?:\s*hàng)?|công\s*ty)|hiện\s*(?:tại|nay)|mới))?"
         rf"\s*(?:là|tại|ở)?\s*[:\-]?\s*(?P<value>[^\n;]{{3,150}}?){ADDRESS_END}"
     ), _address_ok),
+    ("ADDRESS", "medium", re.compile(
+        rf"(?i)(?<![\w/.])(?:số\s+)?\d{{1,4}}[a-z]?(?:/\d{{1,4}}[a-z]?)*\s+{ADDRESS_WORD}(?:\s+{ADDRESS_WORD}){{0,5}}"
+        rf"(?:,\s*(?:{ADMIN_UNIT}\s*)?{ADDRESS_WORD}(?:\s+{ADDRESS_WORD}){{0,3}}){{2,4}}"
+    ), _short_address_ok),
+    ("BANK_ACCOUNT", "high", re.compile(r"\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,3})?\b"), _iban_ok),
     # Số tài khoản không có định dạng riêng nên chỉ nhận khi có từ khóa; chỉ phần
     # số (nhóm "value") bị che.
     ("BANK_ACCOUNT", "high", re.compile(

@@ -28,7 +28,7 @@ Demo nhẹ cho laptop 16 GB RAM, bảo vệ thông tin cá nhân trước khi pr
 ## Chức năng
 
 - Đăng nhập bằng session; tài khoản demo `demo / demo123`.
-- Phát hiện tên Việt Nam (có/không dấu, ~60 họ phổ biến), email (kể cả dạng viết né `[at]`/`[dot]`), số điện thoại di động/cố định, CCCD/CMND (liền hoặc có dấu cách), hộ chiếu, ngày tháng, IPv4/IPv6, thẻ ngân hàng (kiểm tra Luhn), số tài khoản, địa chỉ cụ thể, GPLX, mã số thuế, BHXH/BHYT, biển số xe và nhiều dạng secret/token (mật khẩu, OTP, API key OpenAI/Google/AWS/GitHub/Slack, JWT, private key, chuỗi kết nối DB).
+- Phát hiện tên Việt Nam (có/không dấu, ~60 họ phổ biến), email (kể cả dạng viết né `[at]`/`[dot]`), số điện thoại di động/cố định, CCCD/CMND (liền hoặc có dấu cách), hộ chiếu, ngày tháng, IPv4/IPv6, thẻ ngân hàng (kiểm tra Luhn), số tài khoản, địa chỉ cụ thể (kể cả dạng viết tắt không từ khóa như `268 Lý Thường Kiệt, P.14, Q.10`), IBAN quốc tế (kiểm tra mod-97), GPLX, mã số thuế, BHXH/BHYT, biển số xe và nhiều dạng secret/token (mật khẩu, OTP, API key OpenAI/Google/AWS/GitHub/Slack, JWT, private key, chuỗi kết nối DB, biến môi trường `DB_PASSWORD=`/`AWS_SECRET_ACCESS_KEY=`, khóa JSON/YAML `"password": ...`, viết tắt `pass`/`mk`, mã CVV/CVC).
 - Chuẩn hóa Unicode NFKC và loại ký tự vô hình trước khi nhận diện, nên chữ số full-width, dấu tiếng Việt tổ hợp hay ký tự zero-width không né được bộ lọc.
 - Policy Engine thực hiện `Allow`, `Mask` hoặc `Block`.
 - Chỉ gửi `safe_prompt` đến AI và quét phản hồi trước khi hiển thị.
