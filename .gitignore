@@ -10,3 +10,7 @@ data/*.log
 # Báo cáo Word và file khóa tạm của Office
 *.docx
 ~$*
+
+# Image Guard: dữ liệu OCR tải về và ảnh mẫu tự sinh
+data/tessdata/
+data/samples/

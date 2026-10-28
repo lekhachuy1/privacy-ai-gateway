@@ -6,6 +6,7 @@ import json
 import httpx
 
 from ..config import settings
+from .pii_detector import TOKEN_PATTERN
 
 
 @dataclass(frozen=True)
@@ -84,8 +85,11 @@ class MockConnector:
 
     async def generate(self, safe_prompt: str, history: list[dict]) -> AIResult:
         context = f" Có {len(history)} tin nhắn an toàn trong phiên cũ." if history else ""
+        # Viết token dạng ‹PERSON_01› để gateway không khôi phục chúng khi hiển thị:
+        # người xem thấy đúng thứ AI nhận được, không tưởng nhầm AI nhận dữ liệu thật.
+        received = TOKEN_PATTERN.sub(lambda m: f"‹{m.group('kind')}_{m.group('number')}›", safe_prompt)
         return AIResult(
-            text=f"[MOCK AI] Đã nhận prompt an toàn: {safe_prompt}.{context}",
+            text=f"[MOCK AI] Phản hồi giả lập, không gọi model thật. Nội dung AI nhận được: {received}.{context}",
             provider=self.name,
             model="deterministic-demo",
         )

@@ -40,7 +40,7 @@
           <div id="providerHealth" class="health">Đang kiểm tra AI…</div>
         </header>
         <div class="pipeline">
-          <span>Prompt</span><b>→</b><span>PII Scan</span><b>→</b><span>Policy</span><b>→</b><span>AI Router</span><b>→</b><span>Output Scan</span>
+          <span>Prompt / Ảnh</span><b>→</b><span>OCR</span><b>→</b><span>PII Scan</span><b>→</b><span>Policy</span><b>→</b><span>AI Router</span><b>→</b><span>Output Scan</span>
         </div>
         <div id="messages" class="messages">
           <div class="welcome">
@@ -51,6 +51,18 @@
           </div>
         </div>
         <div id="analysis" class="analysis hidden"></div>
+        <div id="imagePanel" class="image-panel hidden">
+          <div class="image-head">
+            <b id="imageName"></b>
+            <span id="imageStatus">Đang OCR và che ảnh…</span>
+            <button id="imageClear" class="ghost small" type="button">Bỏ ảnh</button>
+          </div>
+          <div class="image-compare">
+            <figure><img id="imageOriginal" alt="Ảnh gốc"><figcaption>Ảnh gốc (chỉ ở trình duyệt)</figcaption></figure>
+            <figure><img id="imageRedacted" alt="Ảnh đã che"><figcaption>Ảnh sau khi che</figcaption></figure>
+          </div>
+          <pre id="imageText" class="image-text"></pre>
+        </div>
         <footer class="composer">
           <div class="memory-options">
             <label class="remember"><input id="remember" type="checkbox" checked> Lưu phiên hiện tại bằng dữ liệu đã làm sạch</label>
@@ -58,7 +70,12 @@
           </div>
           <div class="compose-row">
             <textarea id="prompt" rows="3" maxlength="{{ max_input_chars }}" placeholder="Nhập prompt cần kiểm tra…"></textarea>
-            <button id="sendBtn">Kiểm tra & gửi</button>
+            <div class="compose-actions">
+              <label class="image-pick" title="Đính kèm ảnh: chữ trong ảnh được OCR và che ngay trên máy, chỉ chữ đã che được gửi AI">
+                Ảnh<input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/bmp">
+              </label>
+              <button id="sendBtn">Kiểm tra & gửi</button>
+            </div>
           </div>
           <small>Không dùng dữ liệu cá nhân thật. Bộ nhớ chéo phiên chỉ lấy prompt đã làm sạch của đúng tài khoản. API key chỉ đặt trong file .env của backend.</small>
         </footer>

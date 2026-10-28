@@ -5,3 +5,8 @@ jinja2>=3.1,<4.0
 itsdangerous>=2.2,<3.0
 pytest>=8.4,<10.0
 cryptography>=43,<47
+# Image Guard (OCR ảnh). Cần cài thêm Tesseract OCR + gói tiếng Việt, xem README.
+python-multipart>=0.0.9
+Pillow>=10.0
+opencv-python-headless>=4.8
+qrcode>=7.4

@@ -65,7 +65,16 @@ def test_login_rate_limit(tmp_path):
         database.settings = original_db
 
 
-def test_masked_cloud_payload_and_restored_display(tmp_path):
+class TokenReplyAI:
+    """AI giả trả lời bằng token, như Gemini/Ollama thật được dặn trong system prompt."""
+
+    async def generate(self, safe_prompt, history):
+        from app.services.connectors import AIResult
+        return AIResult("Đã liên hệ [PERSON_01] qua số [PHONE_01].", "mock", "token-reply")
+
+
+def test_masked_cloud_payload_and_restored_display(tmp_path, monkeypatch):
+    monkeypatch.setitem(main.router.connectors, "mock", TokenReplyAI())
     original = database.settings
     database.settings = replace(original, database_path=str(tmp_path / "restore.db"))
     main.login_attempts.clear()
@@ -109,5 +118,22 @@ def test_decomposed_vietnamese_input_is_still_masked(tmp_path):
             prompt = unicodedata.normalize("NFD", "Liên hệ Nguyễn Văn An")
             payload = client.post("/api/chat", headers={"X-CSRF-Token": csrf}, json={"prompt": prompt}).json()
             assert payload["safe_prompt"] == "Liên hệ [PERSON_01]"
+    finally:
+        database.settings = original
+
+
+def test_mock_reply_shows_tokens_instead_of_restored_values(tmp_path):
+    # Mock lặp lại đúng thứ AI nhận; token không được khôi phục, nên người xem
+    # không tưởng nhầm AI đã nhận dữ liệu thật.
+    original = database.settings
+    database.settings = replace(original, database_path=str(tmp_path / "mock.db"))
+    main.login_attempts.clear()
+    try:
+        with TestClient(main.app) as client:
+            csrf = client.post("/api/auth/login", json={"username": "demo", "password": "demo123"}).json()["csrf_token"]
+            reply = client.post("/api/chat", headers={"X-CSRF-Token": csrf},
+                                json={"prompt": "Liên hệ Nguyễn Văn An qua 0901234567"}).json()["response"]
+            assert "‹PERSON_01›" in reply and "‹PHONE_01›" in reply
+            assert "Nguyễn Văn An" not in reply and "0901234567" not in reply
     finally:
         database.settings = original

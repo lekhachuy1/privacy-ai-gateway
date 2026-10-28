@@ -181,6 +181,79 @@ function showAnalysis(data) {
   element.classList.remove("hidden");
 }
 
+// ---- Image Guard -------------------------------------------------------
+// Ảnh gốc chỉ hiển thị cục bộ (object URL). Server trả về ảnh đã che và chữ
+// đã che; khi gửi, AI chỉ nhận chữ đã che, không nhận ảnh.
+let imageFile = null;
+let imageVersion = 0;
+
+async function postForm(url, form) {
+  const response = await fetch(url, { method: "POST", headers: { "X-CSRF-Token": csrfToken }, body: form });
+  const raw = await response.text();
+  let data;
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = { detail: raw || "Lỗi phản hồi" };
+  }
+  if (!response.ok) {
+    const detail = Array.isArray(data.detail) ? data.detail.map((item) => item.msg).join("; ") : data.detail;
+    throw new Error(detail || "Yêu cầu thất bại");
+  }
+  return data;
+}
+
+function clearImage() {
+  imageVersion += 1;
+  imageFile = null;
+  $("#imageInput").value = "";
+  $(".image-pick").classList.remove("on");
+  const original = $("#imageOriginal");
+  if (original.src.startsWith("blob:")) URL.revokeObjectURL(original.src);
+  original.removeAttribute("src");
+  $("#imageRedacted").removeAttribute("src");
+  $("#imagePanel").classList.add("hidden");
+}
+
+function describeImage(data) {
+  const kinds = [...new Set((data.detections || []).map((item) => item.kind))];
+  const parts = [`Che ${data.boxes.length} vùng`, kinds.length ? `PII: ${kinds.join(", ")}` : "không thấy PII trong chữ"];
+  if (data.qr_codes.length) parts.push(`${data.qr_codes.length} mã QR (đã che)`);
+  if (data.id_document) parts.push("giấy tờ tuỳ thân");
+  if (data.gps_removed) parts.push("đã xoá toạ độ GPS");
+  else if (data.exif_removed) parts.push("đã xoá EXIF");
+  if (data.ocr_fixes) parts.push(`sửa ${data.ocr_fixes} lỗi OCR`);
+  parts.push(`${data.timings_ms.total} ms`);
+  return parts.join(" · ");
+}
+
+async function pickImage(file) {
+  if (!file) return;
+  clearImage();
+  const version = imageVersion;
+  imageFile = file;
+  $(".image-pick").classList.add("on");
+  $("#imageName").textContent = file.name;
+  $("#imageStatus").textContent = "Đang OCR và che ảnh…";
+  $("#imageText").textContent = "";
+  $("#imageOriginal").src = URL.createObjectURL(file);
+  $("#imagePanel").classList.remove("hidden");
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const data = await postForm("/api/image/analyze", form);
+    if (version !== imageVersion) return;
+    $("#imageRedacted").src = data.redacted_image;
+    $("#imageStatus").textContent = describeImage(data);
+    $("#imageText").textContent = data.safe_text === null
+      ? "Bị chặn: chữ trong ảnh chứa bí mật (mật khẩu/API key)."
+      : `Chữ sẽ gửi AI (đã che):\n${data.safe_text || "(không đọc được chữ)"}`;
+    showAnalysis(data);
+  } catch (error) {
+    if (version === imageVersion) $("#imageStatus").textContent = `Lỗi: ${error.message}`;
+  }
+}
+
 async function send() {
   if (sending) return;
   if (!csrfToken) {
@@ -188,7 +261,8 @@ async function send() {
     return;
   }
   const prompt = $("#prompt").value.trim();
-  if (!prompt) return;
+  const attached = imageFile;
+  if (!prompt && !attached) return;
 
   const wasNewConversation = conversationId === null;
   const version = viewVersion;
@@ -197,19 +271,31 @@ async function send() {
   if (welcome) welcome.remove();
 
   $("#sendBtn").disabled = true;
-  addMessage("user", prompt);
+  addMessage("user", attached ? `[Ảnh: ${attached.name}] ${prompt}` : prompt);
   $("#prompt").value = "";
 
   try {
-    const data = await api("/api/chat", {
-      method: "POST",
-      body: JSON.stringify({
-        prompt,
-        conversation_id: conversationId,
-        remember: $("#remember").checked,
-        use_cross_session_memory: $("#crossMemory").checked,
-      }),
-    });
+    let data;
+    if (attached) {
+      const form = new FormData();
+      form.append("file", attached);
+      form.append("question", prompt);
+      if (conversationId) form.append("conversation_id", conversationId);
+      form.append("remember", $("#remember").checked);
+      form.append("use_cross_session_memory", $("#crossMemory").checked);
+      data = await postForm("/api/image/chat", form);
+      clearImage();
+    } else {
+      data = await api("/api/chat", {
+        method: "POST",
+        body: JSON.stringify({
+          prompt,
+          conversation_id: conversationId,
+          remember: $("#remember").checked,
+          use_cross_session_memory: $("#crossMemory").checked,
+        }),
+      });
+    }
     if (version !== viewVersion) return;
     showAnalysis(data);
 
@@ -333,6 +419,8 @@ async function health() {
   }
 }
 
+$("#imageInput").onchange = (event) => pickImage(event.target.files[0]);
+$("#imageClear").onclick = clearImage;
 $("#loginBtn").onclick = login;
 $("#sendBtn").onclick = send;
 $("#newChat").onclick = newChat;

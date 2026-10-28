@@ -1,16 +1,17 @@
 from contextlib import asynccontextmanager, nullcontext
 from collections import defaultdict, deque
 import asyncio
+import base64
 import re
 import secrets
 import time
 import weakref
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from starlette.middleware.sessions import SessionMiddleware
 
 from .config import ROOT, settings
@@ -21,6 +22,7 @@ from .database import (
 )
 from .security import hash_password, verify_password
 from .services.ai_router import AIRouter
+from .services.image_guard import MAX_IMAGE_BYTES, ImageReport, OCRUnavailable, analyze_image, detect_ocr_text, ocr_available
 from .services.masker import label_tokens, mask, restore_tokens, tokens_in
 from .services.output_scanner import sanitize_output
 from .services.pii_detector import detect, normalize_text
@@ -70,7 +72,8 @@ async def security_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store"
     if path == "/":
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+            "default-src 'self'; img-src 'self' data: blob:; frame-ancestors 'none'; "
+            "base-uri 'none'; form-action 'self'"
         )
     return response
 
@@ -227,6 +230,10 @@ async def chat(body: ChatBody, request: Request):
     require_csrf(request)
     started = time.perf_counter()
     detections = detect(body.prompt)
+    return await _run_chat(user, body, detections, started)
+
+
+async def _run_chat(user: dict, body: "ChatBody", detections, started: float) -> dict:
     decision = decide(detections)
     pii_types = sorted({item.kind for item in detections})
     if decision.action == "block":
@@ -371,3 +378,89 @@ async def ai_routes(request: Request):
 async def stats(request: Request):
     user = current_user(request)
     return statistics(user["id"])
+
+
+# ---------------------------------------------------------------------------
+# Image Guard: ảnh được OCR và che ngay trên máy chạy gateway. Ảnh gốc không được
+# lưu và không được gửi đi; AI chỉ nhận chữ đã che (cùng đường đi với /api/chat).
+# ---------------------------------------------------------------------------
+
+async def _read_image(file: UploadFile) -> ImageReport:
+    data = await file.read(MAX_IMAGE_BYTES + 1)
+    if not ocr_available():
+        raise HTTPException(503, "Máy chạy gateway chưa cài Tesseract OCR")
+    try:
+        report = await asyncio.to_thread(analyze_image, data)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except OCRUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc
+    return report
+
+
+def _image_summary(report: ImageReport) -> dict:
+    return {
+        "width": report.width, "height": report.height,
+        "redacted_image": "data:image/png;base64," + base64.b64encode(report.redacted_png).decode(),
+        "boxes": report.boxes, "qr_codes": report.qr_codes,
+        "id_document": report.id_document, "exif_removed": report.exif_removed,
+        "gps_removed": report.gps_removed, "ocr_fixes": report.ocr_fixes,
+        "timings_ms": report.timings_ms,
+    }
+
+
+def _image_prompt(question: str, ocr_text: str) -> str:
+    question = question.strip() or "Hãy tóm tắt nội dung ảnh này."
+    header = "\n\n[Nội dung chữ trích từ ảnh người dùng gửi]\n"
+    room = max(0, settings.ai_max_input_chars - len(question) - len(header))
+    return question + header + ocr_text[:room]
+
+
+@app.post("/api/image/analyze")
+async def image_analyze(request: Request, file: UploadFile = File(...)):
+    """Xem trước: ảnh đã che, các vùng PII, QR, EXIF. Không gọi AI."""
+    user = current_user(request)
+    require_csrf(request)
+    report = await _read_image(file)
+    detections = report.detections
+    decision = decide(detections)
+    safe_text, _ = (
+        mask(report.ocr_text, detections, reserved_tokens=tokens_in([report.ocr_text]))
+        if detections else (report.ocr_text, {})
+    )
+    audit(user["id"], "image_analyze", policy_action=decision.action,
+          pii_types=sorted({d.kind for d in detections} | ({"QR_CODE"} if report.qr_codes else set())))
+    return {
+        "action": decision.action, "reason": decision.reason,
+        "safe_text": None if decision.action == "block" else safe_text,
+        "detections": [d.public() for d in detections],
+        **_image_summary(report),
+    }
+
+
+@app.post("/api/image/chat")
+async def image_chat(
+    request: Request,
+    file: UploadFile = File(...),
+    question: str = Form("", max_length=1000),
+    conversation_id: str | None = Form(None, max_length=64),
+    remember: bool = Form(True),
+    use_cross_session_memory: bool = Form(True),
+):
+    """Hỏi AI về ảnh: chỉ chữ đã che trong ảnh được gửi đi, theo đúng luồng chat."""
+    user = current_user(request)
+    require_csrf(request)
+    started = time.perf_counter()
+    report = await _read_image(file)
+    try:
+        body = ChatBody(
+            prompt=_image_prompt(question, report.ocr_text), conversation_id=conversation_id or None,
+            remember=remember, use_cross_session_memory=use_cross_session_memory,
+        )
+    except ValidationError as exc:
+        raise HTTPException(422, "Ảnh không có chữ đọc được và câu hỏi trống") from exc
+    # Nhận diện lại trên toàn prompt (câu hỏi + chữ OCR) bằng bộ dò dành cho OCR,
+    # để vùng chỉ bắt được qua lượt bỏ dấu cũng được che khi gửi AI.
+    result = await _run_chat(user, body, detect_ocr_text(body.prompt), started)
+    result["image"] = _image_summary(report)
+    return result
