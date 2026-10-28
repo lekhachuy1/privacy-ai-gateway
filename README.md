@@ -222,3 +222,31 @@ VM không chạy Ollama. Cấu hình đề xuất: Ubuntu 24.04, RAM 2 GB, 2 vCP
 - Rate-limit hiện lưu trong RAM, phù hợp demo một tiến trình; triển khai nhiều instance cần Redis hoặc kho dùng chung.
 - Bảo vệ file `.env` và SQLite bằng quyền truy cập hệ điều hành.
 - Không mở cổng Ollama `11434` ra Wi-Fi/LAN.
+
+## Image Guard: che dữ liệu cá nhân trong ảnh (thử nghiệm)
+
+Người dùng đính kèm ảnh (CCCD, hoá đơn, ảnh chụp màn hình chat…). Gateway xử lý **ngay trên máy**, offline:
+
+1. Mở ảnh an toàn (≤ 5 MB, PNG/JPEG/WebP/BMP), **xoá EXIF/GPS**, tự **chỉnh ảnh nghiêng**.
+2. **OCR hai lượt bằng Tesseract** (tiếng Việt): một lượt trên ảnh đã chuẩn hoá màu nền để đọc chữ trắng trên nền màu, một lượt trên ảnh xám. Hai chữ trùng vị trí thì giữ chữ có độ tin cậy cao hơn.
+3. **Sửa lỗi OCR**: chữ lẫn trong dãy số (O→0, l→1), dấu sai của họ (NGUYÊN→NGUYỄN). Chạy thêm một lượt nhận diện trên bản bỏ dấu. Dãy từ 9 chữ số trở lên mà chưa nhận diện được thì vẫn che (`LONG_NUMBER`).
+4. PII Detector của luồng văn bản tìm dữ liệu cá nhân. Gateway **bôi đen vùng chứa PII** và **mọi mã QR**, vì QR trên CCCD chứa số CCCD, họ tên, ngày sinh và địa chỉ.
+5. `POST /api/image/analyze` chỉ xem trước: trả về ảnh đã che và chữ đã che, không gọi AI.
+   `POST /api/image/chat` dùng cùng luồng với `/api/chat`, nên **AI chỉ nhận chữ đã thay bằng token**. Ảnh gốc không được lưu và không được gửi đi.
+
+Cài đặt thêm:
+
+```powershell
+winget install --id UB-Mannheim.TesseractOCR -e      # hoặc đặt TESSERACT_CMD trỏ tới tesseract.exe
+mkdir data\tessdata
+curl -L -o data\tessdata\vie.traineddata https://github.com/tesseract-ocr/tessdata_fast/raw/main/vie.traineddata
+curl -L -o data\tessdata\eng.traineddata https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata
+pip install -r requirements.txt
+```
+
+Ảnh mẫu giả và đo đạc:
+
+```powershell
+python scripts/make_sample_images.py --variants   # sinh CCCD/hoá đơn/chat GIẢ vào data/samples
+python scripts/bench_image_guard.py              # so sánh baseline với bản đầy đủ, ghi bench.json
+```

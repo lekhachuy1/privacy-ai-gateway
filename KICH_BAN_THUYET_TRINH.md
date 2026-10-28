@@ -7,7 +7,7 @@ Kịch bản demo chi tiết (từng màn, lời nói, giải thích kỹ thuậ
 ## 1. Chuẩn bị trước buổi bảo vệ (làm trước 30 phút)
 
 - [ ] `.env` đã đặt `APP_SECRET` và `TOKEN_VAULT_KEY` riêng (không còn cảnh báo khi khởi động).
-- [ ] Chạy `python -m pytest -q`: 138 test đạt.
+- [ ] Chạy `python -m pytest -q`: 139 test đạt.
 - [ ] `ollama list` có `gemma3:4b`; chạy thử 1 prompt để model nạp sẵn vào RAM.
 - [ ] Gemini: health check trên giao diện báo "API key và model hợp lệ".
 - [ ] Khởi động với `AI_MODE=hybrid` (chế độ `gemini` không bao giờ gọi Ollama; `mock` nếu mất mạng) bằng `./run_demo.ps1`.
@@ -126,7 +126,7 @@ lên màn hình; nên tạo key riêng cho buổi demo và xóa key đó sau bu�
 
 ## 4. Kết thúc (~2 phút)
 
-Quay lại slide 12 (cải tiến), 13 (giới hạn) và 14 (kết luận), rồi mời hội đồng đặt câu hỏi.
+Quay lại slide 11 (cải tiến) và 12 (kết luận), rồi mời hội đồng đặt câu hỏi.
 
 ## 5. Phương án dự phòng
 

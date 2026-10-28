@@ -19,7 +19,7 @@ Kính chào thầy cô và các bạn. Nhóm em xin trình bày đồ án CDIO4 
 
 Hiện nay nhiều người dùng chatbot AI hằng ngày trong công việc. Câu hỏi nhóm em đặt ra là: làm sao vẫn dùng được AI mà dữ liệu cá nhân không bị gửi ra ngoài?
 
-Phần trình bày gồm bốn phần: vấn đề, kiến trúc giải pháp, demo trực tiếp, và cuối cùng là giới hạn cùng hướng phát triển.
+Phần trình bày gồm bốn phần: vấn đề, kiến trúc giải pháp, demo trực tiếp, và cuối cùng là các cải tiến cùng kết luận.
 
 ### Slide 2 – Vấn đề (0:45)
 
@@ -237,17 +237,17 @@ Tất cả đều được che. Hệ thống còn chuẩn hóa Unicode, nên ch�
 
 ### Màn 9 – Chạy test (chỉ khi được hỏi về độ tin cậy)
 
-`[Ở terminal: .\.venv\Scripts\python.exe -m pytest -q  →  138 passed]`
+`[Ở terminal: .\.venv\Scripts\python.exe -m pytest -q  →  139 passed]`
 
-Toàn bộ 138 test tự động đều đạt. Em xin chỉ một test quan trọng: test này cố tình tắt bộ che dữ liệu, và công cụ giám sát phải báo “THẤY” cả tên, số điện thoại, email và CCCD. Công cụ kiểm chứng chỉ đáng tin nếu nó bắt được rò rỉ khi rò rỉ thật sự xảy ra, và test này chứng minh nó không phải lúc nào cũng báo xanh.
+Toàn bộ 139 test tự động đều đạt. Em xin chỉ một test quan trọng: test này cố tình tắt bộ che dữ liệu, và công cụ giám sát phải báo “THẤY” cả tên, số điện thoại, email và CCCD. Công cụ kiểm chứng chỉ đáng tin nếu nó bắt được rò rỉ khi rò rỉ thật sự xảy ra, và test này chứng minh nó không phải lúc nào cũng báo xanh.
 
 ---
 
 ## PHẦN 3 – KẾT THÚC (~2 phút)
 
-`[Từ màn hình demo, quay lại slide 12.]`
+`[Từ màn hình demo, quay lại slide 11.]`
 
-### Slide 12 – Cải tiến sau rà soát (0:50)
+### Slide 11 – Cải tiến sau rà soát (0:50)
 
 Sau khi rà soát toàn bộ mã nguồn, nhóm em đã cứng hóa hệ thống ở ba nhóm.
 
@@ -255,24 +255,11 @@ Sau khi rà soát toàn bộ mã nguồn, nhóm em đã cứng hóa hệ thống
 - **Logic token và định tuyến**: token không bao giờ bị cấp trùng, kể cả khi AI tự sinh dữ liệu hay hai request đến cùng lúc; dữ liệu quá hạn bị xóa ngay trong lúc chạy; dữ liệu rủi ro cao không lên cloud kể cả khi cấu hình sai.
 - **Bảo mật ứng dụng và kiểm chứng**: chống dò tên đăng nhập, thêm header bảo mật; công cụ giám sát bắt được rò rỉ ở mọi định dạng.
 
-Bộ test tăng từ 25 lên **138 test**, trong đó có test chặn ngay tại lời gọi mạng và test đối chứng chứng minh công cụ giám sát thật sự bắt được rò rỉ.
+Bộ test tăng từ 25 lên **139 test**, trong đó có test chặn ngay tại lời gọi mạng và test đối chứng chứng minh công cụ giám sát thật sự bắt được rò rỉ.
 
-### Slide 13 – Giới hạn và hướng phát triển (0:40)
+Nhóm em cũng nhìn nhận đây là prototype học thuật: nhận diện bằng biểu thức chính quy vẫn có thể sót với tên có họ ngoài danh sách hay địa chỉ không có từ khóa. Nhóm chọn thiết kế thà che thừa còn hơn bỏ sót, có công cụ giám sát để phát hiện khi lọt, và hướng phát triển là dùng mô hình nhận dạng thực thể cho tiếng Việt.
 
-Nhóm em cũng nhìn nhận rõ giới hạn. Đây là một prototype học thuật, chưa phải một hệ thống ngăn rò rỉ dữ liệu hoàn chỉnh.
-
-- Nhận diện bằng biểu thức chính quy có thể sót: tên có họ ngoài danh sách, địa chỉ không có từ khóa, số viết bằng chữ.
-- Thông tin sức khỏe như chẩn đoán bệnh chưa được coi là nhạy cảm.
-- Giới hạn đăng nhập lưu trong RAM, nên chỉ phù hợp khi chạy một tiến trình.
-
-Nhóm em chọn thiết kế **thà che thừa còn hơn bỏ sót**, và có công cụ giám sát để phát hiện khi có lọt. Hướng phát triển gồm:
-
-- dùng mô hình nhận dạng thực thể (NER) cho tiếng Việt;
-- nhận diện chủ đề nhạy cảm như y tế để tự chuyển sang xử lý local;
-- dùng Redis và PostgreSQL khi mở rộng ra nhiều máy chủ;
-- thêm phân quyền quản trị, dashboard audit, triển khai HTTPS với quản lý khóa tập trung.
-
-### Slide 14 – Kết luận (0:20)
+### Slide 12 – Kết luận (0:20)
 
 Tóm lại, mô hình của nhóm em không giao quyết định bảo mật cho AI. Privacy Gateway áp dụng chính sách trước, AI chỉ nhận nội dung đã được phép hoặc đã che giấu, phản hồi được quét lần thứ hai trước khi hiển thị, và mọi điều đó được kiểm chứng bằng nội dung thật sự gửi đi chứ không chỉ bằng lời hệ thống tự báo cáo.
 
@@ -353,7 +340,7 @@ Vì metadata vẫn có thể giúp suy ra danh tính, ví dụ “kiểm tra h�
 AI không bao giờ biết tên thật, vì nó chỉ nhận token. Việc khôi phục diễn ra ở backend sau khi AI trả lời xong, nên AI không có gì để tiết lộ.
 
 **19. Gateway làm chậm hệ thống bao nhiêu?**
-Phần nhận diện và che dữ liệu chỉ mất khoảng 10 mili giây, rất nhỏ so với thời gian mô hình AI trả lời. Nhãn dưới mỗi phản hồi hiển thị tổng độ trễ, khoảng [__ ms] khi dùng Mock và [__ ms] khi dùng Gemini. (Đo trên máy trước buổi bảo vệ rồi điền vào.)
+Phần nhận diện và che dữ liệu chỉ mất khoảng 10 mili giây, rất nhỏ so với thời gian mô hình AI trả lời. Đo ngày 05/10/2026: bước nhận diện và che dữ liệu trung bình 0,33 ms mỗi prompt; tổng độ trễ khoảng 1,9 giây với Gemini và 2,7 giây với Ollama khi model đã nạp sẵn. Riêng lần đầu Ollama phải nạp model nên có thể mất 35–60 giây, vì vậy nhóm nạp sẵn model trước khi demo.
 
 ### E. Về bảo mật và triển khai
 
@@ -374,7 +361,11 @@ Có. Phiên và Token Vault có thời hạn 7 ngày. Dữ liệu hết hạn b�
 ### F. Về nhóm
 
 **24. Phân công công việc trong nhóm như thế nào?**
-[Điền: ai làm backend, ai làm nhận diện/policy, ai làm frontend, ai làm kiểm thử và báo cáo.]
+- Lê Khắc Huy (nhóm trưởng): lên ý tưởng, thiết kế hệ thống; làm phần tự tìm và che thông tin cá nhân trước khi gửi cho AI, phần cất giữ an toàn để hiện lại thông tin thật; viết báo cáo, theo dõi tiến độ.
+- Nguyễn Thành Long: kết nối hệ thống với AI Gemini và Ollama; làm phần tự chọn AI phù hợp và chuyển sang dự phòng khi AI lỗi; làm công cụ kiểm tra nội dung thật sự gửi cho AI.
+- Nguyễn Bá Khánh: làm máy chủ và cơ sở dữ liệu; đăng nhập và bảo vệ website; chức năng ghi nhớ trò chuyện, tự xóa dữ liệu cũ sau 7 ngày.
+- Nguyễn Thị Thu Hằng: thiết kế giao diện web; viết bài kiểm thử, kiểm tra tốc độ và độ an toàn; chụp ảnh minh chứng, làm kịch bản demo và slide.
+- Mỗi thành viên đóng góp 25%; chi tiết tại Phụ lục D của báo cáo.
 
 **25. Khó khăn lớn nhất khi làm đề tài là gì?**
 [Gợi ý: cân bằng giữa che dữ liệu và độ hữu ích của câu trả lời; giữ token nhất quán qua nhiều lượt hội thoại mà không cấp trùng; chứng minh được dữ liệu không rời khỏi máy; chạy Ollama trên laptop có RAM hạn chế.]

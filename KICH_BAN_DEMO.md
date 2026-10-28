@@ -28,7 +28,7 @@ Tạo chuỗi ngẫu nhiên: `python -c "import secrets; print(secrets.token_url
 
 **Checklist:**
 
-- [ ] `.\.venv\Scripts\python.exe -m pytest -q` → **138 passed**.
+- [ ] `.\.venv\Scripts\python.exe -m pytest -q` → **139 passed**.
 - [ ] `ollama list` có `gemma3:4b`; chạy `ollama run gemma3:4b "xin chào"` để nạp sẵn model vào RAM.
 - [ ] Xóa dữ liệu cũ cho màn hình sạch: dừng server, xóa `data\privacy_gateway.db` và `data\egress.log`
       (hệ thống tự tạo lại khi khởi động).
@@ -268,7 +268,7 @@ hay ký tự vô hình chèn giữa các số cũng không qua được."
 Ở cửa sổ phải dưới:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q                                  # 138 passed
+.\.venv\Scripts\python.exe -m pytest -q                                  # 139 passed
 .\.venv\Scripts\python.exe -m pytest tests\test_watch_egress.py -v       # công cụ giám sát
 ```
 
